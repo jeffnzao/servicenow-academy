@@ -1,0 +1,39 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  name          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  progress      UserProgress[]
+  exerciseSubmissions ExerciseSubmission[]
+}
+
+model UserProgress {
+  id          String   @id @default(uuid())
+  userId      String
+  courseId    String
+  status      String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  completedAt DateTime?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model ExerciseSubmission {
+  id          String   @id @default(uuid())
+  userId      String
+  exerciseId  String
+  codeSnippet String   @db.Text
+  status      String   // SUCCESS, FAILED
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

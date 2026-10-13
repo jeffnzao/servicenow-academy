@@ -16,29 +16,55 @@ function ExerciseContent({ params }: { params: Promise<{ id: string }> }) {
   const [showSolution, setShowSolution] = useState(false);
   const [activeTab, setActiveTab] = useState<'instructions' | 'pdi'>('instructions');
 
-  const runCodeTests = () => {
-  // 1. Évaluation de la condition de réussite
-  const isSuccess = 
-    code.includes('setMandatory') || 
-    code.includes('GlideAggregate') || 
-    code.includes('sn_ws') ||
-    code.includes('setValue');
+  const runCodeTests = async () => {
+    // 1. Évaluation de la condition de réussite
+    const isSuccess = 
+      code.includes('setMandatory') || 
+      code.includes('GlideAggregate') || 
+      code.includes('sn_ws') ||
+      code.includes('setValue');
 
-  if (isSuccess) {
-    // 2. Sauvegarde de la progression et ajout de +25 XP
-    saveExerciseProgress(exercise.id);
+    const status = isSuccess ? 'SUCCESS' : 'FAILED';
 
-    setTestResult({
-      success: true,
-      message: "✅ Validation réussie ! +25 XP accordés. Vos progrès ont été enregistrés."
-    });
-  } else {
-    setTestResult({
-      success: false,
-      message: "❌ Échec de validation : Vérifiez les méthodes utilisées selon les consignes de l'exercice."
-    });
-  }
-};
+    if (isSuccess) {
+      // 2. Sauvegarde locale / XP existante
+      saveExerciseProgress(exercise.id);
+
+      setTestResult({
+        success: true,
+        message: "✅ Validation réussie ! +25 XP accordés. Vos progrès ont été enregistrés."
+      });
+    } else {
+      setTestResult({
+        success: false,
+        message: "❌ Échec de validation : Vérifiez les méthodes utilisées selon les consignes de l'exercice."
+      });
+    }
+
+    // 3. Enregistrement persistant dans Supabase via notre API
+    try {
+      const userId = localStorage.getItem('sn_academy_user_id') || 'demo-user-id';
+      
+      const response = await fetch('/api/exercises/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          exerciseId: exercise.id,
+          codeSnippet: code,
+          status,
+        }),
+      });
+
+      if (response.ok) {
+        console.log("Progression synchronisée avec succès dans Supabase.");
+      }
+    } catch (err) {
+      console.error("Erreur réseau lors de la soumission de l'exercice :", err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-gray-100 font-sans p-6 md:p-12">

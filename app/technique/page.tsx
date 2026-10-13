@@ -1,14 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { COURSES_TECHNIQUE } from '@/lib/course-registry';
-import { ArrowLeft, BookOpen, Play, Cpu } from 'lucide-react';
+import { ArrowLeft, BookOpen, Play, CheckCircle } from 'lucide-react';
 import CourseFilter from '@/components/courses/CourseFilter';
+
+interface ProgressItem {
+  courseId: string;
+  status: string;
+}
 
 export default function TechniqueCataloguePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
+  const [completedCourses, setCompletedCourses] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function fetchUserProgress() {
+      try {
+        const userId = localStorage.getItem('sn_academy_user_id') || 'demo-user-id';
+        const res = await fetch(`/api/progress?userId=${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const completed = new Set<string>(
+            (data.progress || [])
+              .filter((p: ProgressItem) => p.status === 'COMPLETED')
+              .map((p: ProgressItem) => p.courseId)
+          );
+          setCompletedCourses(completed);
+        }
+      } catch (err) {
+        console.error("Erreur lors du chargement de la progression du catalogue", err);
+      }
+    }
+    fetchUserProgress();
+  }, []);
 
   // Filtrage dynamique des cours
   const filteredCourses = COURSES_TECHNIQUE.filter((course) => {
@@ -43,44 +70,52 @@ export default function TechniqueCataloguePage() {
         {/* Liste des cours filtrés */}
         <div className="space-y-4">
           {filteredCourses.length > 0 ? (
-            filteredCourses.map((course) => (
-              <div
-                key={course.id}
-                className="bg-[#111827] border border-gray-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
-                      {course.category}
-                    </span>
-                    <span className="text-xs text-gray-400">Niveau : {course.level}</span>
-                    <span className="text-xs text-gray-500">Durée : {course.duration}</span>
+            filteredCourses.map((course) => {
+              const isCompleted = completedCourses.has(course.id);
+              return (
+                <div
+                  key={course.id}
+                  className="bg-[#111827] border border-gray-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
+                        {course.category}
+                      </span>
+                      <span className="text-xs text-gray-400">Niveau : {course.level}</span>
+                      <span className="text-xs text-gray-500">Durée : {course.duration}</span>
+                      {isCompleted && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold rounded-full">
+                          <CheckCircle size={12} /> Terminé
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-white">{course.title}</h3>
+                    <p className="text-xs text-gray-400 leading-relaxed">{course.description}</p>
                   </div>
-                  <h3 className="text-lg font-bold text-white">{course.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{course.description}</p>
-                </div>
 
-                <div className="flex items-center space-x-3 shrink-0 w-full md:w-auto justify-end">
-                  <Link
-                    href={`/technique/${course.slug}`}
-                    className="bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors inline-flex items-center space-x-1.5"
-                  >
-                    <BookOpen size={14} />
-                    <span>Lire le cours</span>
-                  </Link>
-
-                  {course.relatedExerciseId && (
+                  <div className="flex items-center space-x-3 shrink-0 w-full md:w-auto justify-end">
                     <Link
-                      href={`/exercise/${course.relatedExerciseId}`}
-                      className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors inline-flex items-center space-x-1.5 shadow-md shadow-blue-600/20"
+                      href={`/technique/${course.slug}`}
+                      className="bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors inline-flex items-center space-x-1.5"
                     >
-                      <Play size={14} />
-                      <span>Pratiquer</span>
+                      <BookOpen size={14} />
+                      <span>Lire le cours</span>
                     </Link>
-                  )}
+
+                    {course.relatedExerciseId && (
+                      <Link
+                        href={`/exercise/${course.relatedExerciseId}`}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors inline-flex items-center space-x-1.5 shadow-md shadow-blue-600/20"
+                      >
+                        <Play size={14} />
+                        <span>Pratiquer</span>
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="bg-[#111827] border border-gray-800 rounded-2xl p-12 text-center text-gray-400 text-sm">
               Aucun cours technique ne correspond à votre recherche.
